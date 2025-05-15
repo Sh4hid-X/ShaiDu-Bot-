@@ -1,77 +1,84 @@
 const { spawn } = require("child_process");
+const { readFileSync } = require("fs-extra");
+/////////////////////////////////////////////
+//========= CHECK UPTIME =========//
+/////////////////////////////////////////////
+const http = require("http");
 const axios = require("axios");
+const semver = require("semver");
 const logger = require("./utils/log");
+const chalk = require("chalk");
+var uptimelink = [`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`]
+const Monitor = require('ping-monitor');
+for (const now of uptimelink) {
+  const monitor = new Monitor({
+    website: `${now}`,
+    title: 'ShaiDu',
+    interval: 59,
+  config: {
+    intervalUnits: 'seconds'
+  }
+});
+monitor.on('up', (res) => console.log(chalk.bold.hex("#00FF00")("[ ShaiDu ] ❯ ") + chalk.hex("#00FF00")(`${res.website}`)))
+monitor.on('down', (res) => console.log(chalk.bold.hex("#FF0000")("[ DOWN ] ❯ ") + chalk.hex("#FF0000")(`${res.website} ${res.statusMessage}`)))
+monitor.on('stop', (website) => console.log(chalk.bold.hex("#FF0000")("[ STOP ] ❯ ") + chalk.hex("#FF0000")(`${website}`)))
+monitor.on('error', (error) => console.log(chalk.bold.hex("#FF0000")("[ ERROR ] ❯ ") + chalk.hex("#FF0000")(`${error}`)))
+}
+/////////////////////////////////////////////
+//========= Check node.js version =========//
+/////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////
 //========= Create website for dashboard/uptime =========//
 ///////////////////////////////////////////////////////////
 
 const express = require('express');
-const path = require('path');
-
 const app = express();
-const port = process.env.PORT || 8080;
 
-// Serve the index.html file
-app.get('/', function (req, res) {
-    res.sendFile(path.join(__dirname, '/index.html'));
-});
+const port = process.env.PORT || 5000
+     
+app.listen(port, () =>
+	logger(`Your app is listening a http://localhost:${port}`, "[ ONLINE ]")
+     );      
 
-// Start the server and add error handling
-app.listen(port, () => {
-    logger(`Server is running on port ${port}...`, "[ Starting ]");
-}).on('error', (err) => {
-    if (err.code === 'EACCES') {
-        logger(`Permission denied. Cannot bind to port ${port}.`, "[ Error ]");
-    } else {
-        logger(`Server error: ${err.message}`, "[ Error ]");
-    }
-});
+
+logger("Opened server site...", "[ Starting ]");
 
 /////////////////////////////////////////////////////////
 //========= Create start bot and make it loop =========//
 /////////////////////////////////////////////////////////
 
-// Initialize global restart counter
-global.countRestart = global.countRestart || 0;
-
 function startBot(message) {
-    if (message) logger(message, "[ Starting ]");
+    (message) ? logger(message, "[ Starting ]") : "";
 
-    const child = spawn("node", ["--trace-warnings", "--async-stack-traces", "Priyansh.js"], {
+    const child = spawn("node", ["--trace-warnings", "--async-stack-traces", "ShaiDu.js"], {
         cwd: __dirname,
         stdio: "inherit",
         shell: true
     });
-
-    child.on("close", (codeExit) => {
-        if (codeExit !== 0 && global.countRestart < 5) {
+  
+  child.on("close", (codeExit) => {
+        if (codeExit != 0 || global.countRestart && global.countRestart < 5) {
+            startBot("Starting up...");
             global.countRestart += 1;
-            logger(`Bot exited with code ${codeExit}. Restarting... (${global.countRestart}/5)`, "[ Restarting ]");
-            startBot();
-        } else {
-            logger(`Bot stopped after ${global.countRestart} restarts.`, "[ Stopped ]");
-        }
+            return;
+        } else return;
     });
 
-    child.on("error", (error) => {
-        logger(`An error occurred: ${JSON.stringify(error)}`, "[ Error ]");
-    });
+  child.on("error", function(error) {
+    logger("An error occurred: " + JSON.stringify(error), "[ Starting ]");
+  });
 };
-
 ////////////////////////////////////////////////
 //========= Check update from Github =========//
 ////////////////////////////////////////////////
 
-axios.get("https://raw.githubusercontent.com/priyanshu192/bot/main/package.json")
-    .then((res) => {
-        logger(res.data.name, "[ NAME ]");
-        logger(`Version: ${res.data.version}`, "[ VERSION ]");
-        logger(res.data.description, "[ DESCRIPTION ]");
-    })
-    .catch((err) => {
-        logger(`Failed to fetch update info: ${err.message}`, "[ Update Error ]");
-    });
 
-// Start the bot
+axios.get("https://raw.githubusercontent.com/Sh4hid-X/Test/main/package.json").then((res) => {
+  logger(res['data']['name'], "[ NAME ]");
+  logger("Version: " + res['data']['version'], "[ VERSION ]");
+  logger(res['data']['description'], "[ DESCRIPTION ]");
+});
 startBot();
+// THIZ BOT WAS MADE BY Th'w ShaiDu- DO NOT STEAL MY CODE (つ ͡ ° ͜ʖ ͡° )つ ✄ ╰⋃╯
+app.get('/', (req, res) => res.sendFile(__dirname+'/index.html'))
